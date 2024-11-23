@@ -190,7 +190,6 @@ class Parser:
                 else:
                     self.has_errors = True
                     raise SyntaxError("Обработка команд после end невозможна", 0, 0)
-                    break
 
         except SyntaxError as e:
             self.has_errors = True  # Устанавливаем флаг при ошибке
