@@ -93,9 +93,9 @@ class SyntaxError(Exception):
 
 # Синтаксический анализатор
 class Parser:
-    def __init__(self, tokens, code):
+    def __init__(self, tokens, code_):
         self.tokens = tokens
-        self.code = code
+        self.code = code_
         self.pos = 0
         self.current_token_index = 0
         self.current_token = self.tokens[self.pos] if self.tokens else None
@@ -140,6 +140,8 @@ class Parser:
             else:
                 line_number = self.get_line_number()
                 line_text = self.get_line_content()
+                #print(self.get_token())
+                #print(self.next_token())
                 raise SyntaxError(
                     f"Ожидалось {expected_value if expected_value else expected_type}, было получено {token}",
                     line_number, line_text)
@@ -163,15 +165,10 @@ class Parser:
                         self.next_token()
                     else:
                         self.parse_declaration()
-                    # if self.get_token() and self.get_token()[1] == ";":
-                    #     print(f"if {self.get_token()}")
-                    #     self.next_token()
-                    # else:
-                    #     print(f"else {self.get_token()}")
-                    #     print(
-                    #         f"Syntax error on line {self.get_line_number()}: Expected ';' after declaration, but got {self.get_token()}")
-                    #     print(f"Line content: {self.get_line_content()}")
-                    #    return
+                    # if self.get_token() and self.get_token()[1] == ";": print(f"if {self.get_token()}")
+                    # self.next_token() else: print(f"else {self.get_token()}") print( f"Syntax error on line {
+                    # self.get_line_number()}: Expected ';' after declaration, but got {self.get_token()}") print(
+                    # f"Line content: {self.get_line_content()}") return
                 #  return
 
             # Начало основной программы
@@ -190,6 +187,7 @@ class Parser:
                 else:
                     self.has_errors = True
                     raise SyntaxError("Обработка команд после end невозможна", 0, 0)
+                    break
 
         except SyntaxError as e:
             self.has_errors = True  # Устанавливаем флаг при ошибке
@@ -241,39 +239,97 @@ class Parser:
         # print(self.symbol_table)
         self.expect("PUNCT", ";")
 
-    def parse_statement(self):
+    def parse_statement(self, type_statement="None"):
         token = self.get_token()
+        #print(token)
+        #print(type_statement)
 
-        if token[1] == "if":
-            self.parse_if_statement()
-        elif token[1] == "while":
-            self.parse_while_loop()
-        elif token[1] == "for":
-            self.parse_for_loop()
-        elif token[1] == "read":
-            self.parse_read_statement()
-        elif token[1] == "write":
-            self.parse_write_statement()
-        elif token[0] == "ID":
-            self.parse_assignment()
-        elif token[0] == "COMMENT":
-            self.parse_comment()
+        if type_statement == "compound":
+            if token[1] == ":":
+                token = self.next_token()
+            if token[1] == "if":
+                self.parse_if_statement("compound")
+            elif token[1] == "while":
+                self.parse_while_loop("compound")
+            elif token[1] == "for":
+                self.parse_for_loop("compound")
+            elif token[1] == "read":
+                self.parse_read_statement()
+            elif token[1] == "write":
+                self.parse_write_statement()
+            elif token[0] == "ID":
+                self.parse_assignment()
+            elif token[0] == "COMMENT":
+                self.parse_comment()
+            elif token[0] == "PUNCT" and token[1] == "[":
+                self.parse_compound_statement()
+            else:
+                # print(self.get_token())
+                # print(self.next_token())
+                # print(token[0])
+                raise SyntaxError(f"Непредвиденное выражение {token[1]}", self.get_line_number(), self.get_line_content())
         else:
-            # print(self.get_token())
-            # print(self.next_token())
-            # print(token[0])
-            raise SyntaxError(f"Непредвиденное выражение {token[1]}", self.get_line_number(), self.get_line_content())
+            if token[1] == "if":
+                self.parse_if_statement()
+            elif token[1] == "while":
+                self.parse_while_loop()
+            elif token[1] == "for":
+                self.parse_for_loop()
+            elif token[1] == "read":
+                self.parse_read_statement()
+            elif token[1] == "write":
+                self.parse_write_statement()
+            elif token[0] == "ID":
+                self.parse_assignment()
+            elif token[0] == "COMMENT":
+                self.parse_comment()
+            elif token[0] == "PUNCT" and token[1] == "[":
+                self.parse_compound_statement()
+            else:
+                # print(self.get_token())
+                # print(self.next_token())
+                # print(token[0])
+                raise SyntaxError(f"Непредвиденное выражение {token[1]}", self.get_line_number(), self.get_line_content())
 
-    def parse_if_statement(self):
+    def parse_compound_statement(self):
+        self.expect("PUNCT", "[")
+        #print("Still compound statement")
+        while self.get_token() and self.get_token()[1] != "]":
+            #print(self.get_token())
+            if self.get_token()[1] == ":":
+                self.expect("PUNCT", ":")
+            self.parse_statement("compound")
+        #print("Not compound statement")
+        self.expect("PUNCT", "]")
+        self.expect("PUNCT", ";")
+
+    def parse_if_statement(self, type_of_statement="None"):
         self.expect("KEYWORD", "if")
-        self.parse_expression()  # Парсим условие `if`
+        #print(type_of_statement+"type")
+        self.parse_expression()
+        # if type_of_statement == "compound":
+        #     self.parse_expression()  # Парсим условие `if`
+        # else:
+        #     self.parse_expression()
         self.expect("KEYWORD", "then")
-        self.parse_statement()  # Парсим оператор `then`
+        # self.parse_statement()  # Парсим оператор `then`
+
+        # Проверяем, будет ли составной оператор
+        if self.get_token() and self.get_token()[1] == "[":
+            self.parse_compound_statement()
+        else:
+            if type_of_statement == "compound":
+                self.parse_statement("compound")
+            else:
+                self.parse_statement()
 
         # Проверка наличия блока `else`
         if self.get_token() and self.get_token()[1] == "else":
             self.expect("KEYWORD", "else")
-            self.parse_statement()  # Парсим оператор `else`
+            if type_of_statement == "compound":
+                self.parse_statement("compound")  # Парсим оператор `else`
+            else:
+                self.parse_statement()
 
     def parse_comment(self):
         self.expect("COMMENT")
@@ -341,19 +397,39 @@ class Parser:
         self.expect("PUNCT", ")")
         self.expect("PUNCT", ";")
 
-    def parse_for_loop(self):
+    def parse_for_loop(self, type_of_statement="None"):
         self.expect("KEYWORD", "for")
         self.parse_assignment("for")  # Присваивание начального значения
         self.expect("KEYWORD", "to")
         self.parse_expression("for")  # Парсим выражение конца диапазона
         self.expect("KEYWORD", "do")
-        self.parse_statement()  # Парсим оператор цикла
+        # self.parse_statement()  # Парсим оператор цикла
+        # Проверяем, будет ли составной оператор
+        if self.get_token() and self.get_token()[1] == "[":
+            self.parse_compound_statement()
+        else:
+            if type_of_statement == "compound":
+                self.parse_statement("compound")
+            else:
+                self.parse_statement()
 
-    def parse_while_loop(self):
+    def parse_while_loop(self, type_of_statement="None"):
         self.expect("KEYWORD", "while")
-        self.parse_expression()  # Парсим выражение условия
+        self.parse_expression()
+        # if type_of_statement == "compound":
+        #     self.parse_expression("compound")  # Парсим выражение условия
+        # else:
+        #     self.parse_expression()
         self.expect("KEYWORD", "do")
-        self.parse_statement()  # Парсим оператор цикла
+        # self.parse_statement()  # Парсим оператор цикла
+        # Проверяем, будет ли составной оператор
+        if self.get_token() and self.get_token()[1] == "[":
+            self.parse_compound_statement()
+        else:
+            if type_of_statement == "compound":
+                self.parse_statement("compound")
+            else:
+                self.parse_statement()
 
     def parse_assignment(self, info="None"):
         var_name = self.get_token()[1]
@@ -479,7 +555,6 @@ var
 {dfadfaf}
 x,y : integer;
 w : boolean;
-w : integer;
 {dfadfaf}
 z : real;
 begin
@@ -498,7 +573,30 @@ for
 {dfadfaf}
 begin
 """
-
+code4 = """
+program var
+x, y : integer;
+z : real;
+v : boolean;
+begin
+[
+x as 10;
+y as 20;
+for x as 1 to 10 do
+[
+: write(x);
+    ];
+while y LT z do
+    y as y plus 1;
+if x LT y then
+   : z as x plus y;
+else
+    z as x min y;
+    ];
+write(x, y, z);
+read(x, y);
+end.
+"""
 
 # lexer = Lexer(code1)  # создаем лексер с исходным кодом
 # tokens = lexer.tokenize()  # получаем токены
@@ -509,6 +607,7 @@ begin
 # # Проверяем наличие ошибок
 # if not parser.has_errors and not lexer.has_error:
 #     print("Все верно")
+
 def process_code(code, name="default"):
     print(f"Результат для {name}: ")
     lexer = Lexer(code)  # создаем лексер с исходным кодом
@@ -526,4 +625,4 @@ process_code(code, "program 0")
 process_code(code1, "program 1")
 process_code(code2, "program 2")
 process_code(code3, "program 3")
-# составной
+process_code(code4, "program 4")
